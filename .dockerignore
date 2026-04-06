@@ -1,0 +1,7 @@
+node_modules
+.next
+.env*
+uploads
+.git
+.claude
+AGENTS.md
