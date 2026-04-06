@@ -29,8 +29,8 @@ export default async function Home() {
       <section className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight">Tushar Debnath</h1>
         <p className="text-lg text-muted">
-          Designer &amp; developer crafting digital experiences. Currently building
-          products that people love to use.
+          Product designer and design technologist with more than ten years of
+          expertise in shaping products and creating impactful user experiences.
         </p>
       </section>
 
