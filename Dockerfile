@@ -1,12 +1,13 @@
 FROM node:20-alpine AS base
 
-# Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # --- Dependencies ---
 FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN pnpm install --frozen-lockfile
 
 # --- Build ---
@@ -14,32 +15,33 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Generate Prisma client
 RUN pnpm prisma generate
-
-# Build Next.js
 RUN pnpm build
 
 # --- Production ---
-FROM base AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
 # Copy standalone output
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma schema + migrations for runtime migrate
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.pnpm/@prisma+client*/node_modules/.prisma ./.prisma
+# Copy generated Prisma client (needed at runtime for queries)
 COPY --from=builder /app/src/generated ./src/generated
+
+# Copy prisma CLI + schema for db push at startup
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 
 # Create uploads directory
 RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
@@ -50,4 +52,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss 2>&1 && node server.js"]
