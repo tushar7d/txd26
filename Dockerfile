@@ -49,4 +49,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "cd /app/_prisma_deps && npx prisma db push --skip-generate --accept-data-loss 2>&1; cd /app && node server.js"]
+CMD ["sh", "-c", "cd /app/_prisma_deps && for i in 1 2 3 4 5; do npx prisma db push --skip-generate --accept-data-loss 2>&1 && break || echo \"Retry $i...\" && sleep 3; done && cd /app && node server.js"]
