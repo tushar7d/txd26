@@ -28,7 +28,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Standalone Next.js output
+# Standalone Next.js output (includes its own node_modules)
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -36,10 +36,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Prisma generated client (needed for runtime queries)
 COPY --from=builder /app/src/generated ./src/generated
 
-# Prisma CLI + deps for db push at startup (copy full node_modules from deps stage)
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+# Prisma CLI in separate dir so it doesn't overwrite standalone node_modules
+COPY --from=deps /app/node_modules /app/_prisma_deps/node_modules
+COPY --from=builder /app/prisma /app/_prisma_deps/prisma
+COPY --from=builder /app/prisma.config.ts /app/_prisma_deps/prisma.config.ts
 
 RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
 
@@ -49,4 +49,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node server.js"]
+CMD ["sh", "-c", "cd /app/_prisma_deps && npx prisma db push --skip-generate --accept-data-loss 2>&1; cd /app && node server.js"]
