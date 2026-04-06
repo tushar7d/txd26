@@ -2,20 +2,27 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 
 export default async function Home() {
-  const [posts, projects] = await Promise.all([
-    db.post.findMany({
-      where: { published: true },
-      orderBy: { createdAt: "desc" },
-      take: 3,
-      select: { title: true, slug: true, excerpt: true, createdAt: true },
-    }),
-    db.project.findMany({
-      where: { published: true },
-      orderBy: { sortOrder: "asc" },
-      take: 4,
-      select: { title: true, slug: true, description: true, company: true, year: true },
-    }),
-  ]);
+  let posts: { title: string; slug: string; excerpt: string | null; createdAt: Date }[] = [];
+  let projects: { title: string; slug: string; description: string | null; company: string | null; year: string | null }[] = [];
+
+  try {
+    [posts, projects] = await Promise.all([
+      db.post.findMany({
+        where: { published: true },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        select: { title: true, slug: true, excerpt: true, createdAt: true },
+      }),
+      db.project.findMany({
+        where: { published: true },
+        orderBy: { sortOrder: "asc" },
+        take: 4,
+        select: { title: true, slug: true, description: true, company: true, year: true },
+      }),
+    ]);
+  } catch {
+    // DB not ready yet — show empty state
+  }
 
   return (
     <div className="space-y-16">
